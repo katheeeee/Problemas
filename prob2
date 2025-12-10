@@ -10,9 +10,9 @@ class Pagina {
 public:
     bool esHoja;
     vector<int> claves;
-    vector<int> valores;     // solo hojas
-    vector<Pagina*> hijos;   // solo internos
-    Pagina* siguiente;       // enlace entre hojas
+    vector<int> valores;   // solo hojas
+    vector<Pagina*> hijos; // solo internos
+    Pagina* siguiente;     // enlace entre hojas
 
     Pagina(bool hoja) : esHoja(hoja), siguiente(nullptr) {}
 };
@@ -22,78 +22,83 @@ class BPlusTree {
 private:
     Pagina* raiz;
 
-    // Inserta en hojas
+    // Insertar en una hoja
     bool insertarEnHoja(Pagina* pag, int clave, int valor,
-                        int &claveProm, Pagina* &nuevaPag) 
+                        int &claveProm, Pagina* &nuevaHoja)
     {
+        // insertar en orden
         auto it = lower_bound(pag->claves.begin(), pag->claves.end(), clave);
         int pos = it - pag->claves.begin();
 
         pag->claves.insert(it, clave);
         pag->valores.insert(pag->valores.begin() + pos, valor);
 
+        // no excede
         if (pag->claves.size() <= MAX_CLAVES) return false;
 
         // dividir hoja
         int mid = pag->claves.size() / 2;
-        nuevaPag = new Pagina(true);
+        nuevaHoja = new Pagina(true);
 
-        nuevaPag->claves.assign(pag->claves.begin() + mid, pag->claves.end());
-        nuevaPag->valores.assign(pag->valores.begin() + mid, pag->valores.end());
+        nuevaHoja->claves.assign(pag->claves.begin() + mid, pag->claves.end());
+        nuevaHoja->valores.assign(pag->valores.begin() + mid, pag->valores.end());
 
         pag->claves.resize(mid);
         pag->valores.resize(mid);
 
-        nuevaPag->siguiente = pag->siguiente;
-        pag->siguiente = nuevaPag;
+        nuevaHoja->siguiente = pag->siguiente;
+        pag->siguiente = nuevaHoja;
 
-        claveProm = nuevaPag->claves.front();
+        claveProm = nuevaHoja->claves.front();
         return true;
     }
 
-    // Inserta recursivamente
+    // Recursivo para insertar
     bool insertarRec(Pagina* pag, int clave, int valor,
-                     int &claveProm, Pagina* &nuevoHijo) 
+                     int &claveProm, Pagina* &nuevoHijo)
     {
+        // --- HOJA ---
         if (pag->esHoja) {
             return insertarEnHoja(pag, clave, valor, claveProm, nuevoHijo);
         }
 
-        // buscar hijo
+        // --- INTERNO ---
         int i = 0;
         while (i < pag->claves.size() && clave >= pag->claves[i]) i++;
 
         int claveSube;
-        Pagina* hijoSube = nullptr;
+        Pagina* hijoNuevo = nullptr;
 
-        bool dividido = insertarRec(pag->hijos[i], clave, valor, claveSube, hijoSube);
+        bool dividido = insertarRec(pag->hijos[i], clave, valor,
+                                    claveSube, hijoNuevo);
 
         if (!dividido) return false;
 
         // insertar clave y nuevo hijo
         pag->claves.insert(pag->claves.begin() + i, claveSube);
-        pag->hijos.insert(pag->hijos.begin() + i + 1, hijoSube);
+        pag->hijos.insert(pag->hijos.begin() + i + 1, hijoNuevo);
 
         if (pag->claves.size() <= MAX_CLAVES) return false;
 
-        // dividir nodo interno
+        // dividir interno
         int mid = pag->claves.size() / 2;
-        nuevaPag = new Pagina(false);
+        Pagina* nuevoInterno = new Pagina(false);
 
         claveProm = pag->claves[mid];
 
-        nuevaPag->claves.assign(pag->claves.begin() + mid + 1, pag->claves.end());
-        nuevaPag->hijos.assign(pag->hijos.begin() + mid + 1, pag->hijos.end());
+        nuevoInterno->claves.assign(pag->claves.begin() + mid + 1, pag->claves.end());
+        nuevoInterno->hijos.assign(pag->hijos.begin() + mid + 1, pag->hijos.end());
 
         pag->claves.resize(mid);
         pag->hijos.resize(mid + 1);
 
+        nuevoHijo = nuevoInterno;
         return true;
     }
 
 public:
     BPlusTree() {
-        raiz = new Pagina(true);  // empieza como hoja
+        raiz = new Pagina(true);
     }
 
     void insertar(int clave, int valor) {
@@ -102,6 +107,7 @@ public:
 
         bool dividido = insertarRec(raiz, clave, valor, claveProm, nuevoHijo);
 
+        // si la raíz se divide
         if (dividido) {
             Pagina* nuevaRaiz = new Pagina(false);
             nuevaRaiz->claves.push_back(claveProm);
@@ -114,13 +120,14 @@ public:
     bool buscar(int clave, int &valor) {
         Pagina* pag = raiz;
 
+        // bajar hasta hoja
         while (!pag->esHoja) {
             int i = 0;
             while (i < pag->claves.size() && clave >= pag->claves[i]) i++;
             pag = pag->hijos[i];
         }
 
-        // buscar en la hoja
+        // buscar en hoja
         for (int i = 0; i < pag->claves.size(); i++) {
             if (pag->claves[i] == clave) {
                 valor = pag->valores[i];
@@ -131,7 +138,7 @@ public:
     }
 };
 
-// Ejemplo de uso
+// Ejemplo
 int main() {
     BPlusTree arbol;
 
@@ -141,10 +148,8 @@ int main() {
     arbol.insertar(15, 150);
 
     int valor;
-    if (arbol.buscar(15, valor)) {
+    if (arbol.buscar(15, valor))
         cout << "15 -> " << valor << endl;
-    }
 
     return 0;
 }
-
