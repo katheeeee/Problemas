@@ -1,0 +1,115 @@
+#include <bptree/bptree.hpp>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <cstdio>
+
+using namespace std;
+using namespace bptree;
+
+// Representa a un estudiante
+class Estudiante {
+public:
+    int id;
+    string nombre;
+    int edad;
+    int nota;
+
+    Estudiante(int id, const string& nombre, int edad, int nota)
+        : id(id), nombre(nombre), edad(edad), nota(nota) {}
+};
+
+// Maneja el árbol B+ y las operaciones
+class AplicacionIndiceEstudiantes {
+private:
+    BPTree arbol;
+    vector<Estudiante> lista;
+
+public:
+    AplicacionIndiceEstudiantes(int limiteInterno, int limiteHoja)
+        : arbol(limiteInterno, limiteHoja) 
+    {
+        lista.emplace_back(101, "Alice",   20, 85);
+        lista.emplace_back(102, "Bob",     21, 90);
+        lista.emplace_back(103, "Charlie", 19, 88);
+        lista.emplace_back(104, "Diana",   22, 92);
+        lista.emplace_back(105, "Eve",     20, 87);
+    }
+
+    // Inserta estudiantes y crea un archivo por cada uno
+    void insertarEstudiantes() {
+        cout << "Insertando estudiantes:\n";
+
+        for (const auto& est : lista) {
+            string nombreArchivo = "DBFiles/" + to_string(est.id) + ".txt";
+            FILE* archivo = fopen(nombreArchivo.c_str(), "w");
+
+            if (archivo) {
+                fprintf(archivo, "%s %d %d\n",
+                        est.nombre.c_str(),
+                        est.edad,
+                        est.nota);
+
+                arbol.insert(est.id, archivo);
+
+                fclose(archivo);
+                cout << "  ID=" << est.id << ", Nombre=" << est.nombre << "\n";
+            } else {
+                cerr << "  No se pudo crear archivo para ID " << est.id << "\n";
+            }
+        }
+    }
+
+    // Muestra el árbol
+    void mostrarArbol() {
+        cout << "\n=== Vista jerárquica ===\n";
+        arbol.display(arbol.getRoot());
+
+        cout << "\n=== Vista secuencial ===\n";
+        arbol.seqDisplay(arbol.getRoot());
+    }
+
+    // Prueba algunas búsquedas
+    void demostracionBusqueda() {
+        cout << "\n=== Búsquedas ===\n";
+        vector<int> ids = {101, 103, 999};
+
+        for (int id : ids) {
+            cout << "Buscando " << id << ": ";
+            arbol.search(id);
+        }
+    }
+
+    // Elimina un ID para mostrar cómo cambia el árbol
+    void demostracionEliminacion() {
+        cout << "\n=== Eliminación ===\n";
+        int idEliminar = 102;
+
+        cout << "Eliminando ID " << idEliminar << "\n";
+        arbol.removeKey(idEliminar);
+
+        cout << "\n=== Árbol después de eliminar ===\n";
+        arbol.display(arbol.getRoot());
+
+        cout << "\n=== Secuencia después de eliminar ===\n";
+        arbol.seqDisplay(arbol.getRoot());
+    }
+
+    void ejecutar() {
+        cout << "=== Ejemplo Árbol B+ ===\n\n";
+        cout << "Límites: interno=4, hoja=3\n\n";
+
+        insertarEstudiantes();
+        mostrarArbol();
+        demostracionBusqueda();
+        demostracionEliminacion();
+
+        cout << "\n=== Fin del ejemplo ===\n";
+    }
+};
+
+int main() {
+    AplicacionIndiceEstudiantes app(4, 3);
+    app.ejecutar();
+    return 0;
+}
