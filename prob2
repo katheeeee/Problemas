@@ -1,173 +1,131 @@
 #include <iostream>
 #include <vector>
-#include <unordered_map>
-#include <list>
-#include <memory>
 #include <algorithm>
-
 using namespace std;
 
-const int MAX_CLAVES = 3; // máximo de claves por página
+const int MAX_CLAVES = 3; // límite para dividir
 
-// Página = nodo del árbol
-struct Pagina {
-    int id;
+// Nodo del árbol
+class Pagina {
+public:
     bool esHoja;
     vector<int> claves;
-    vector<int> valores; // solo hojas
-    vector<int> hijos;   // solo internos
-    int siguienteHoja;
+    vector<int> valores;     // solo hojas
+    vector<Pagina*> hijos;   // solo internos
+    Pagina* siguiente;       // enlace entre hojas
 
-    Pagina(int id_, bool hoja) : id(id_), esHoja(hoja), siguienteHoja(-1) {}
-};
-
-// Maneja páginas en memoria (con LRU)
-class GestorPaginas {
-private:
-    size_t capacidad;
-    unordered_map<int, shared_ptr<Pagina>> mapa;
-    list<int> lru;
-    int siguienteId;
-
-    void usar(int id) {
-        lru.remove(id);
-        lru.push_front(id);
-    }
-
-    void expulsar() {
-        if (mapa.size() <= capacidad) return;
-        int idFuera = lru.back();
-        lru.pop_back();
-        mapa.erase(idFuera);
-    }
-
-public:
-    GestorPaginas(size_t cap = 100) : capacidad(cap), siguienteId(0) {}
-
-    shared_ptr<Pagina> crearPagina(bool hoja) {
-        int id = siguienteId++;
-        auto p = make_shared<Pagina>(id, hoja);
-        mapa[id] = p;
-        usar(id);
-        expulsar();
-        return p;
-    }
-
-    shared_ptr<Pagina> obtener(int id) {
-        if (!mapa.count(id)) return nullptr;
-        usar(id);
-        return mapa[id];
-    }
+    Pagina(bool hoja) : esHoja(hoja), siguiente(nullptr) {}
 };
 
 // Árbol B+
 class BPlusTree {
 private:
-    GestorPaginas gestor;
-    int idRaiz;
+    Pagina* raiz;
+
+    // Inserta en hojas
+    bool insertarEnHoja(Pagina* pag, int clave, int valor,
+                        int &claveProm, Pagina* &nuevaPag) 
+    {
+        auto it = lower_bound(pag->claves.begin(), pag->claves.end(), clave);
+        int pos = it - pag->claves.begin();
+
+        pag->claves.insert(it, clave);
+        pag->valores.insert(pag->valores.begin() + pos, valor);
+
+        if (pag->claves.size() <= MAX_CLAVES) return false;
+
+        // dividir hoja
+        int mid = pag->claves.size() / 2;
+        nuevaPag = new Pagina(true);
+
+        nuevaPag->claves.assign(pag->claves.begin() + mid, pag->claves.end());
+        nuevaPag->valores.assign(pag->valores.begin() + mid, pag->valores.end());
+
+        pag->claves.resize(mid);
+        pag->valores.resize(mid);
+
+        nuevaPag->siguiente = pag->siguiente;
+        pag->siguiente = nuevaPag;
+
+        claveProm = nuevaPag->claves.front();
+        return true;
+    }
 
     // Inserta recursivamente
-    bool insertarRec(int idPag, int clave, int valor,
-                     int &claveProm, int &nuevoHijo) {
-
-        auto pag = gestor.obtener(idPag);
-
-        // --- hoja ---
+    bool insertarRec(Pagina* pag, int clave, int valor,
+                     int &claveProm, Pagina* &nuevoHijo) 
+    {
         if (pag->esHoja) {
-            auto it = lower_bound(pag->claves.begin(), pag->claves.end(), clave);
-            int pos = it - pag->claves.begin();
-
-            pag->claves.insert(it, clave);
-            pag->valores.insert(pag->valores.begin() + pos, valor);
-
-            if (pag->claves.size() <= MAX_CLAVES) return false;
-
-            // dividir hoja
-            int mid = pag->claves.size() / 2;
-            auto nuevo = gestor.crearPagina(true);
-
-            nuevo->claves.assign(pag->claves.begin() + mid, pag->claves.end());
-            nuevo->valores.assign(pag->valores.begin() + mid, pag->valores.end());
-
-            pag->claves.resize(mid);
-            pag->valores.resize(mid);
-
-            nuevo->siguienteHoja = pag->siguienteHoja;
-            pag->siguienteHoja = nuevo->id;
-
-            claveProm = nuevo->claves.front();
-            nuevoHijo = nuevo->id;
-            return true;
+            return insertarEnHoja(pag, clave, valor, claveProm, nuevoHijo);
         }
 
-        // --- interno ---
+        // buscar hijo
         int i = 0;
         while (i < pag->claves.size() && clave >= pag->claves[i]) i++;
 
-        int claveSube, hijoSube;
-        bool dividido = insertarRec(pag->hijos[i], clave, valor,
-                                    claveSube, hijoSube);
+        int claveSube;
+        Pagina* hijoSube = nullptr;
+
+        bool dividido = insertarRec(pag->hijos[i], clave, valor, claveSube, hijoSube);
 
         if (!dividido) return false;
 
+        // insertar clave y nuevo hijo
         pag->claves.insert(pag->claves.begin() + i, claveSube);
         pag->hijos.insert(pag->hijos.begin() + i + 1, hijoSube);
 
         if (pag->claves.size() <= MAX_CLAVES) return false;
 
-        // dividir interno
+        // dividir nodo interno
         int mid = pag->claves.size() / 2;
-        auto nuevo = gestor.crearPagina(false);
+        nuevaPag = new Pagina(false);
 
         claveProm = pag->claves[mid];
 
-        nuevo->claves.assign(pag->claves.begin() + mid + 1, pag->claves.end());
-        nuevo->hijos.assign(pag->hijos.begin() + mid + 1, pag->hijos.end());
+        nuevaPag->claves.assign(pag->claves.begin() + mid + 1, pag->claves.end());
+        nuevaPag->hijos.assign(pag->hijos.begin() + mid + 1, pag->hijos.end());
 
         pag->claves.resize(mid);
         pag->hijos.resize(mid + 1);
 
-        nuevoHijo = nuevo->id;
         return true;
     }
 
 public:
-    BPlusTree(size_t maxPaginas = 100) : gestor(maxPaginas) {
-        auto r = gestor.crearPagina(true);
-        idRaiz = r->id;
+    BPlusTree() {
+        raiz = new Pagina(true);  // empieza como hoja
     }
 
     void insertar(int clave, int valor) {
-        int claveProm, hijoNuevo;
-        bool dividido = insertarRec(idRaiz, clave, valor, claveProm, hijoNuevo);
+        int claveProm;
+        Pagina* nuevoHijo = nullptr;
+
+        bool dividido = insertarRec(raiz, clave, valor, claveProm, nuevoHijo);
 
         if (dividido) {
-            auto nueva = gestor.crearPagina(false);
-            nueva->claves.push_back(claveProm);
-            nueva->hijos.push_back(idRaiz);
-            nueva->hijos.push_back(hijoNuevo);
-            idRaiz = nueva->id;
+            Pagina* nuevaRaiz = new Pagina(false);
+            nuevaRaiz->claves.push_back(claveProm);
+            nuevaRaiz->hijos.push_back(raiz);
+            nuevaRaiz->hijos.push_back(nuevoHijo);
+            raiz = nuevaRaiz;
         }
     }
 
     bool buscar(int clave, int &valor) {
-        auto pag = gestor.obtener(idRaiz);
+        Pagina* pag = raiz;
 
-        // bajar hasta una hoja
-        while (pag && !pag->esHoja) {
+        while (!pag->esHoja) {
             int i = 0;
             while (i < pag->claves.size() && clave >= pag->claves[i]) i++;
-            pag = gestor.obtener(pag->hijos[i]);
+            pag = pag->hijos[i];
         }
 
-        if (!pag) return false;
-
-        auto it = lower_bound(pag->claves.begin(), pag->claves.end(), clave);
-        int pos = it - pag->claves.begin();
-
-        if (it != pag->claves.end() && *it == clave) {
-            valor = pag->valores[pos];
-            return true;
+        // buscar en la hoja
+        for (int i = 0; i < pag->claves.size(); i++) {
+            if (pag->claves[i] == clave) {
+                valor = pag->valores[i];
+                return true;
+            }
         }
         return false;
     }
@@ -182,9 +140,11 @@ int main() {
     arbol.insertar(20, 200);
     arbol.insertar(15, 150);
 
-    int v;
-    if (arbol.buscar(15, v))
-        cout << "15 -> " << v << endl;
+    int valor;
+    if (arbol.buscar(15, valor)) {
+        cout << "15 -> " << valor << endl;
+    }
 
     return 0;
 }
+
