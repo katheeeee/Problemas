@@ -7,6 +7,7 @@
 
 using namespace std;
 
+// implementamos algoritmos de busqueda.
 int busquedaLineal(const vector<int>& a, int x){
     for (size_t i=0;i<a.size();++i)
         if(a[i]==x) return (int)i;
@@ -59,6 +60,7 @@ int busquedaInterpolacion(const vector<int>& a, int x){
     return -1;
 }
 
+//Corregu¿imos la medicion y mejoramos.
 template <class F>
 double medir(const vector<int>& a, const vector<int>& queries, F buscador){
     using clk=chrono::high_resolution_clock;
