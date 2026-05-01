@@ -1,0 +1,153 @@
+
+# PRÁCTICA: TABLAS HASH (SIN PANDAS)
+
+import matplotlib
+matplotlib.use('TkAgg')  
+
+import time
+import matplotlib.pyplot as plt
+import hashlib
+import random
+import os
+import csv
+
+# ───────────────────────────────────────────────────────────────
+# FUNCIÓN HASH
+# ───────────────────────────────────────────────────────────────
+def funcion_hash(clave: str, tamanio: int) -> int:
+    hash_val = 0
+    for c in str(clave):
+        hash_val = (hash_val * 31 + ord(c)) % tamanio
+    return hash_val
+
+# ───────────────────────────────────────────────────────────────
+# TABLA HASH CON ENCADENAMIENTO
+# ───────────────────────────────────────────────────────────────
+class TablaHashEncadenamiento:
+    def __init__(self, tamanio: int):
+        self.tamanio = tamanio
+        self.tabla = [[] for _ in range(tamanio)]
+        self.colisiones = 0
+        self.elementos = 0
+
+    def insertar(self, clave: str, valor=None):
+        idx = funcion_hash(clave, self.tamanio)
+        if self.tabla[idx]:
+            self.colisiones += 1
+        self.tabla[idx].append((clave, valor))
+        self.elementos += 1
+
+    def buscar(self, clave: str):
+        idx = funcion_hash(clave, self.tamanio)
+        for k, v in self.tabla[idx]:
+            if k == clave:
+                return v
+        return None
+
+    def factor_de_carga(self):
+        return self.elementos / self.tamanio
+# ───────────────────────────────────────────────────────────────
+# TABLA HASH SONDEO LINEAL
+# ───────────────────────────────────────────────────────────────
+class TablaHashSondeoLineal:
+    ELIMINADO = '__ELIMINADO__'
+
+    def __init__(self, tamanio: int):
+        self.tamanio = tamanio
+        self.tabla = [None] * tamanio
+        self.colisiones = 0
+        self.elementos = 0
+
+    def insertar(self, clave: str, valor=None):
+        if self.elementos >= self.tamanio * 0.75:
+            raise OverflowError('Tabla llena')
+
+        idx = funcion_hash(clave, self.tamanio)
+        pasos = 0
+
+        while self.tabla[idx] is not None:
+            self.colisiones += 1
+            idx = (idx + 1) % self.tamanio
+            pasos += 1
+            if pasos >= self.tamanio:
+                raise OverflowError('Sin espacio')
+
+        self.tabla[idx] = (clave, valor)
+        self.elementos += 1
+
+    def buscar(self, clave: str):
+        idx = funcion_hash(clave, self.tamanio)
+        pasos = 0
+
+        while self.tabla[idx] is not None:
+            if self.tabla[idx][0] == clave:
+                return self.tabla[idx][1]
+            idx = (idx + 1) % self.tamanio
+            pasos += 1
+            if pasos >= self.tamanio:
+                break
+
+        return None
+
+    def factor_de_carga(self):
+        return self.elementos / self.tamanio
+
+# ───────────────────────────────────────────────────────────────
+# BENCHMARK
+# ───────────────────────────────────────────────────────────────
+def benchmark_completo(claves, tamanios=[1009, 2003, 4001, 8009]):
+    resultados = []
+
+    for m in tamanios:
+        subclaves = claves[:min(len(claves), int(m * 0.65))]
+
+        th_enc = TablaHashEncadenamiento(m)
+        for c in subclaves:
+            th_enc.insertar(c)
+
+        th_sl = TablaHashSondeoLineal(m)
+        for c in subclaves:
+            try:
+                th_sl.insertar(c)
+            except:
+                break
+
+        resultados.append({
+            'tamanio': m,
+            'col_enc': th_enc.colisiones,
+            'col_sl': th_sl.colisiones
+        })
+
+        print(f'm={m} | col_enc={th_enc.colisiones} | col_sl={th_sl.colisiones}')
+
+    return resultados
+
+# ───────────────────────────────────────────────────────────────
+# GRÁFICA
+# ───────────────────────────────────────────────────────────────
+def graficar(resultados):
+    tamanios = [r['tamanio'] for r in resultados]
+    col_enc = [r['col_enc'] for r in resultados]
+    col_sl = [r['col_sl'] for r in resultados]
+
+    plt.plot(tamanios, col_enc, label="Encadenamiento")
+    plt.plot(tamanios, col_sl, label="Sondeo Lineal")
+
+    plt.title("Colisiones vs Tamaño")
+    plt.xlabel("Tamaño")
+    plt.ylabel("Colisiones")
+    plt.legend()
+
+    plt.show()
+    input("Presiona ENTER para cerrar...")  
+# ───────────────────────────────────────────────────────────────
+# MAIN
+# ───────────────────────────────────────────────────────────────
+if __name__ == '__main__':
+    random.seed(42)
+
+    claves = [f'user_{random.randint(1, 50000):05d}' for _ in range(3000)]
+    claves = list(set(claves))
+
+    resultados = benchmark_completo(claves)
+    graficar(resultados)
