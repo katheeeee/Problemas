@@ -56,7 +56,6 @@ class HashTableLinearProbing:
             self.collisions += 1
             index = (index + 1) % self.size
 
-            # Evitar loop infinito
             if index == start:
                 raise Exception("Tabla llena")
 
@@ -71,6 +70,56 @@ class HashTableLinearProbing:
                 return self.table[index][1]
 
             index = (index + 1) % self.size
+
+            if index == start:
+                break
+
+        return None
+
+    def load_factor(self, total_elements):
+        return total_elements / self.size
+
+
+# =========================
+# HASH CON DOBLE HASHING (NUEVO)
+# =========================
+class HashTableDoubleHashing:
+    def __init__(self, size):
+        self.size = size
+        self.table = [None] * size
+        self.collisions = 0
+
+    def hash1(self, key):
+        return hash(key) % self.size
+
+    def hash2(self, key):
+        # Segunda funcion hash: debe ser impar y devolver un paso entre 1 y size-1
+        return 1 + (hash(key) % (self.size - 1))
+
+    def insert(self, key, value):
+        index = self.hash1(key)
+        step = self.hash2(key)
+        start = index
+
+        while self.table[index] is not None:
+            self.collisions += 1
+            index = (index + step) % self.size
+
+            if index == start:
+                raise Exception("Tabla llena")
+
+        self.table[index] = (key, value)
+
+    def search(self, key):
+        index = self.hash1(key)
+        step = self.hash2(key)
+        start = index
+
+        while self.table[index] is not None:
+            if self.table[index][0] == key:
+                return self.table[index][1]
+
+            index = (index + step) % self.size
 
             if index == start:
                 break
@@ -125,6 +174,22 @@ search_time_linear = time.time() - start_time
 
 
 # =========================
+# PRUEBA DOBLE HASHING (NUEVO)
+# =========================
+hash_double = HashTableDoubleHashing(table_size)
+
+start_time = time.time()
+for key in keys:
+    hash_double.insert(key, {"Customer ID": key})
+insert_time_double = time.time() - start_time
+
+start_time = time.time()
+for key in keys[:1000]:
+    hash_double.search(key)
+search_time_double = time.time() - start_time
+
+
+# =========================
 # DICCIONARIO NATIVO
 # =========================
 native_dict = {}
@@ -144,13 +209,14 @@ search_time_dict = time.time() - start_time
 # RESULTADOS
 # =========================
 results = pd.DataFrame({
-    "Metodo": ["Encadenamiento", "Sondeo lineal", "Diccionario Python"],
-    "Tiempo insercion": [insert_time_chain, insert_time_linear, insert_time_dict],
-    "Tiempo busqueda": [search_time_chain, search_time_linear, search_time_dict],
-    "Colisiones": [hash_chain.collisions, hash_linear.collisions, 0],
+    "Metodo": ["Encadenamiento", "Sondeo lineal", "Doble hashing", "Diccionario Python"],
+    "Tiempo insercion": [insert_time_chain, insert_time_linear, insert_time_double, insert_time_dict],
+    "Tiempo busqueda": [search_time_chain, search_time_linear, search_time_double, search_time_dict],
+    "Colisiones": [hash_chain.collisions, hash_linear.collisions, hash_double.collisions, 0],
     "Factor de carga": [
         hash_chain.load_factor(len(keys)),
         hash_linear.load_factor(len(keys)),
+        hash_double.load_factor(len(keys)),
         len(keys) / table_size
     ]
 })
@@ -161,16 +227,18 @@ print(results)
 # =========================
 # GRAFICOS
 # =========================
-plt.figure(figsize=(8, 5))
-plt.bar(results["Metodo"], results["Tiempo insercion"])
+plt.figure(figsize=(10, 5))
+plt.bar(results["Metodo"], results["Tiempo insercion"], color=['steelblue', 'coral', 'seagreen', 'gold'])
 plt.title("Comparacion de tiempo de insercion")
+plt.ylabel("Tiempo (segundos)")
 plt.xticks(rotation=20)
 plt.tight_layout()
 plt.show()
 
-plt.figure(figsize=(8, 5))
-plt.bar(results["Metodo"], results["Tiempo busqueda"])
+plt.figure(figsize=(10, 5))
+plt.bar(results["Metodo"], results["Tiempo busqueda"], color=['steelblue', 'coral', 'seagreen', 'gold'])
 plt.title("Comparacion de tiempo de busqueda")
+plt.ylabel("Tiempo (segundos)")
 plt.xticks(rotation=20)
 plt.tight_layout()
 plt.show()
