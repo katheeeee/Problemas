@@ -1,0 +1,59 @@
+#include <iostream>
+#include <chrono>
+#include <iomanip>
+#include <vector>
+using namespace std;
+using namespace std::chrono;
+
+// Implementacion O(n) - Bucle acumulativo
+long long sumaLineal(int n) {
+    long long suma = 0;
+    for (int i = 1; i <= n; i++) {
+        suma += i;
+    }
+    return suma;
+}
+
+// Implementacion O(1) - Formula de Gauss
+long long sumaConstante(int n) {
+    return (long long)n * (n + 1) / 2;
+}
+
+int main() {
+    vector<int> valores = {1000, 5000, 10000, 50000,
+                           100000, 500000, 1000000};
+
+    cout << "COMPARACION DE TIEMPOS DE EJECUCION" << endl;
+    cout << "Suma de los primeros N numeros naturales" << endl;
+    cout << string(65, '-') << endl;
+    cout << setw(12) << "N"
+         << setw(20) << "Tiempo O(n) (ms)"
+         << setw(20) << "Tiempo O(1) (ms)"
+         << setw(15) << "Resultado" << endl;
+    cout << string(65, '-') << endl;
+
+    for (int n : valores) {
+        // Medicion del algoritmo O(n)
+        auto inicio = high_resolution_clock::now();
+        long long resultado1 = sumaLineal(n);
+        auto fin = high_resolution_clock::now();
+        double tiempoLineal = duration<double, milli>(fin - inicio).count();
+
+        // Medicion del algoritmo O(1)
+        inicio = high_resolution_clock::now();
+        long long resultado2 = sumaConstante(n);
+        fin = high_resolution_clock::now();
+        double tiempoConstante = duration<double, milli>(fin - inicio).count();
+
+        cout << setw(12) << n
+             << setw(18) << fixed << setprecision(6) << tiempoLineal
+             << setw(20) << setprecision(6) << tiempoConstante
+             << setw(15) << resultado1 << endl;
+    }
+
+    cout << string(65, '-') << endl;
+    cout << "Ambos metodos devuelven el mismo resultado: "
+         << sumaLineal(100) << " = " << sumaConstante(100) << endl;
+
+    return 0;
+}
