@@ -4,6 +4,8 @@ from enum import Enum, auto
 from typing import Optional, List
 from collections import deque
 import statistics
+import time
+import random
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -29,7 +31,6 @@ class Estudiante:
     semestre_ingreso: str
 
     def __post_init__(self):
-        # Mantenemos la validación original de códigos ajustada al rango de tus nuevos datos
         if not (10000000 <= self.codigo <= 29999999):
             raise ValueError(f"Código inválido: {self.codigo}")
         if not (0.0 <= self.ppa <= 20.0):
@@ -239,7 +240,7 @@ class AppAcademica:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Sistema de Registro Académico AVL - O(log n)")
-        self.root.geometry("850x650")
+        self.root.geometry("850x670")
         
         self.arbol = ArbolAcademico()
         self._cargar_datos_iniciales()
@@ -290,6 +291,10 @@ class AppAcademica:
         btn_eliminar = tk.Button(frame_form, text="Eliminar por Código", bg="#f44336", fg="white", font=('Helvetica', 10, 'bold'), width=22, command=self.ejecutar_eliminar)
         btn_eliminar.pack(pady=4)
 
+        # NUEVO NUEVO: Botón para ejecutar el Benchmark de Rendimiento Masivo
+        btn_benchmark = tk.Button(frame_form, text="Ejecutar Benchmark (Act. 13)", bg="#9C27B0", fg="white", font=('Helvetica', 10, 'bold'), width=22, command=self.ejecutar_benchmark)
+        btn_benchmark.pack(pady=8)
+
         # --- PANEL DERECHO: CONSOLA Y RECORRIDOS ---
         frame_derecho = tk.Frame(root)
         frame_derecho.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH, padx=10, pady=10)
@@ -309,11 +314,9 @@ class AppAcademica:
         self.consola = tk.Text(frame_derecho, wrap=tk.WORD, font=('Courier New', 10))
         self.consola.pack(expand=True, fill=tk.BOTH, pady=5)
 
-        # Mostrar datos iniciales en la consola nada más empezar
         self.mostrar_recorrido("In-Order")
 
     def _cargar_datos_iniciales(self):
-        # Nuevos estudiantes solicitados cargados dinámicamente en el árbol AVL
         estudiantes = [
             Estudiante(20210500, 'Mamani Quispe, Juan', 'Ing. Sistemas', 15.8, 120, EstadoAcademico.ACTIVO, '2021-I'),
             Estudiante(20210300, 'Huanca Apaza, Maria', 'Ing. Civil', 14.2, 110, EstadoAcademico.ACTIVO, '2021-I'),
@@ -332,8 +335,6 @@ class AppAcademica:
     def escribir_consola(self, texto: str):
         self.consola.insert(tk.END, texto + "\n")
 
-    # --- ENLACES DE LOS BOTONES A LA LÓGICA AVL ---
-    
     def ejecutar_insertar(self):
         try:
             est = Estudiante(
@@ -385,6 +386,47 @@ class AppAcademica:
             messagebox.showerror("No Encontrado", str(ex))
         except ValueError:
             messagebox.showerror("Error", "Por favor ingresa un número de código válido para eliminar.")
+
+    # NUEVA FUNCIÓN: Lógica del Benchmark Experimental acoplada a la UI
+    def ejecutar_benchmark(self):
+        self.limpiar_consola()
+        self.escribir_consola("--- Ejecutando Benchmark Experimental (Dataset Masivo) ---")
+        self.escribir_consola("Generando e insertando 50,000 nodos balanceados... Por favor espere.")
+        self.root.update()
+
+        arbol_pruebas = ArbolAcademico()
+        TAMANO_DATASET = 50000
+        random.seed(12345) # Semilla idéntica a la simulación teórica
+        
+        codigos_insertados = []
+        
+        # Medir inserciones masivas
+        inicio_ins = time.perf_counter()
+        while len(codigos_insertados) < TAMANO_DATASET:
+            cod = random.randint(10000000, 29999999)
+            try:
+                arbol_pruebas.insertar(Estudiante(cod, "Estudiante Benchmark", "Escuela Sede", 14.0, 100, EstadoAcademico.ACTIVO, "2026-I"))
+                codigos_insertados.append(cod)
+            except (ValueError, RuntimeError):
+                continue
+        fin_ins = time.perf_counter()
+        tiempo_insercion = (fin_ins - inicio_ins) * 1000.0
+
+        # Medir búsquedas masivas
+        inicio_bus = time.perf_counter()
+        for cod in codigos_insertados:
+            arbol_pruebas.buscar(cod)
+        fin_bus = time.perf_counter()
+        tiempo_busqueda = (fin_bus - inicio_bus) * 1000.0
+
+        # Imprimir resultados en tu consola gráfica
+        self.escribir_consola("\n=== RESULTADOS DE RENDIMIENTO EN PYTHON ===")
+        self.escribir_consola(f" -> Tamaño del Dataset : {TAMANO_DATASET} registros")
+        self.escribir_consola(f" -> Tiempo de Inserción: {tiempo_insercion:.2f} ms")
+        self.escribir_consola(f" -> Tiempo de Búsqueda : {tiempo_busqueda:.2f} ms")
+        self.escribir_consola(f" -> Altura Final AVL   : {arbol_pruebas.estadisticas().get('Altura Árbol')}")
+        self.escribir_consola("\n[Listo] Copie estos tiempos exactos en su tabla comparativa de la Actividad 13.")
+        messagebox.showinfo("Benchmark Finalizado", "Simulación completada con éxito. Los tiempos están en la consola.")
 
     def mostrar_recorrido(self, tipo: str):
         self.limpiar_consola()
