@@ -1,0 +1,167 @@
+import matplotlib.pyplot as plt
+import networkx as nx
+import math
+from matplotlib.widgets import Button
+import matplotlib.gridspec as gridspec
+
+class NodoBST:
+    def __init__(self, val):
+        self.val = val
+        self.left = None
+        self.right = None
+
+# --- Funciones de Verificación Estructural ---
+def is_bst(tree, min_val=float('-inf'), max_val=float('inf')):
+    if tree is None:
+        return True
+    if not (min_val < tree.val < max_val):
+        return False
+    return (is_bst(tree.left, min_val, tree.val) and 
+            is_bst(tree.right, tree.val, max_val))
+
+def inorder(tree):
+    if tree is None:
+        return []
+    return inorder(tree.left) + [tree.val] + inorder(tree.right)
+
+def size(tree):
+    if tree is None:
+        return 0
+    return 1 + size(tree.left) + size(tree.right)
+
+def height(tree):
+    if tree is None:
+        return -1
+    return 1 + max(height(tree.left), height(tree.right))
+
+def insert(tree, val):
+    if tree is None:
+        return NodoBST(val)
+    if val < tree.val:
+        tree.left = insert(tree.left, val)
+    elif val > tree.val:
+        tree.right = insert(tree.right, val)
+    return tree
+
+# --- Mapeo Geométrico de Posiciones ---
+def mapear_arbol(nodo, grafo, pos, x=0, y=0, capa=1):
+    if nodo is not None:
+        grafo.add_node(nodo.val)
+        pos[nodo.val] = (x, y)
+        desplazamiento = 1.5 / (2 ** capa)
+        
+        if nodo.left is not None:
+            grafo.add_edge(nodo.val, nodo.left.val)
+            mapear_arbol(nodo.left, grafo, pos, x - desplazamiento, y - 1, capa + 1)
+            
+        if nodo.right is not None:
+            grafo.add_edge(nodo.val, nodo.right.val)
+            mapear_arbol(nodo.right, grafo, pos, x + desplazamiento, y - 1, capa + 1)
+
+# --- Variables de Estado ---
+valores = [10, 5, 15, 3, 7, 12]
+paso_actual = 0
+raiz = None
+propiedad_activa = "P1"
+
+# --- Configuración del Lienzo Dividido en 3 Columnas (GridSpec) ---
+fig = plt.figure(figsize=(13, 7))
+# 60% Árbol, 22% Cuadro Matemático, 18% Menú de Botones
+gs = gridspec.GridSpec(1, 3, width_ratios=[60, 22, 18])  
+
+ax_arbol = plt.subplot(gs[0])       # Columna 1: Árbol
+ax_propiedad = plt.subplot(gs[1])   # Columna 2: Cuadro de propiedades (Texto)
+ax_menu = plt.subplot(gs[2])        # Columna 3: Contenedor para botones
+
+# Ocultamos los ejes de las columnas de texto y menú para que actúen como lienzos limpios
+ax_propiedad.axis('off')
+ax_menu.axis('off')
+
+# Lista para proteger las referencias de los botones en memoria
+botones_referencias = []
+
+def renderizar():
+    ax_arbol.clear()
+    
+    # 1. Reconstruir el BST hasta el paso actual
+    global raiz
+    raiz = None
+    for i in range(paso_actual + 1):
+        raiz = insert(raiz, valores[i])
+        
+    G = nx.DiGraph()
+    posiciones = {}
+    mapear_arbol(raiz, G, posiciones)
+    
+    # 2. Dibujar el Árbol (Columna Izquierda)
+    nx.draw(G, posiciones, ax=ax_arbol, with_labels=True, node_size=1000, node_color="skyblue",
+            font_size=11, font_weight="bold", arrowsize=18, edge_color="gray", width=2.0)
+    
+    ax_arbol.set_title(f"Paso {paso_actual + 1}: Insertando el {valores[paso_actual]}", 
+                       fontsize=13, fontweight='bold', pad=15)
+    ax_arbol.margins(0.2)
+    
+    # 3. Actualizar la Columna Central (Propiedades Matemáticas)
+    for t in ax_propiedad.texts:
+        t.remove()
+        
+    n = size(raiz)
+    h = height(raiz)
+    info_text = ""
+    
+    if propiedad_activa == "P1":
+        seq = inorder(raiz)
+        info_text = f"PROPIEDAD P1:\nRecorrido In-Order\n\nSecuencia obtenida:\n{seq}\n\n¿Esta ordenada?:\n{seq == sorted(seq)}"
+    elif propiedad_activa == "P2":
+        cota = math.ceil(math.log2(n + 1)) - 1
+        info_text = f"PROPIEDAD P2:\nCota de Altura\n\nNodos (n): {n}\nAltura (h): {h}\n\nFormula:\nh >= log2(n+1) - 1\n\nEvaluacion:\n{h} >= {cota} -> {h >= cota}"
+    elif propiedad_activa == "P3":
+        t_izq = size(raiz.left) if raiz.left else 0
+        t_der = size(raiz.right) if raiz.right else 0
+        info_text = f"PROPIEDAD P3:\nConteo de Nodos\n\nFormula:\n|T| = |T_L| + |T_R| + 1\n\nDesglose:\n{n} = {t_izq} + {t_der} + 1\n\nResultado:\n{n == t_izq + t_der + 1}"
+    elif propiedad_activa == "P4":
+        info_text = f"PROPIEDAD P4:\nInvariante BST\n\n¿Cada nodo izquierdo\nes menor y cada\nderecho es mayor?\n\nResultado:\n{is_bst(raiz)}"
+
+    # Colocar el texto perfectamente en la columna central
+    ax_propiedad.text(0.0, 0.85, info_text, fontsize=10.5, family='monospace',
+                      verticalalignment='top', bbox=dict(boxstyle='round,pad=1', facecolor='wheat', alpha=0.6))
+    
+    plt.draw()
+
+# --- Controladores de Eventos (Clicks) ---
+def click_siguiente(event):
+    global paso_actual
+    if paso_actual < len(valores) - 1:
+        paso_actual += 1
+        renderizar()
+
+def cambiar_propiedad(prop):
+    global propiedad_activa
+    propiedad_activa = prop
+    renderizar()
+
+# --- Posicionamiento del Menú (Columna Derecha Extrema) ---
+# Botón Siguiente posicionado arriba en su columna
+ax_sig = plt.axes([0.83, 0.78, 0.14, 0.07])
+btn_sig = Button(ax_sig, 'SIGUIENTE ->', color='lightgreen', hovercolor='lime')
+btn_sig.on_clicked(click_siguiente)
+botones_referencias.append(btn_sig)
+
+# Botones de Propiedades apilados de forma limpia de arriba a abajo en la columna derecha
+opciones_menu = [
+    ("Ver P1 (In-Order)", "P1"),
+    ("Ver P2 (Altura)", "P2"),
+    ("Ver P3 (Conteo)", "P3"),
+    ("Ver P4 (Invariante)", "P4")
+]
+
+y_pos_inicial = 0.65
+for i, (label, prop_id) in enumerate(opciones_menu):
+    ax_btn = plt.axes([0.83, y_pos_inicial - (i * 0.09), 0.14, 0.06])
+    btn = Button(ax_btn, label, color='lightgray', hovercolor='darkgray')
+    btn.on_clicked(lambda event, p=prop_id: cambiar_propiedad(p))
+    botones_referencias.append(btn)
+
+# Ejecución Inicial
+renderizar()
+plt.show()
