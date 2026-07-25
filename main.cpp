@@ -1,79 +1,111 @@
-#include "rbt.hpp"
+// ---------------------------------------------------------------------------
+// main_biblioteca.cpp - Simulacion del catalogo de la Biblioteca Central
+// UNA-PUNO (C++17)
+//
+// Compilar:
+//   g++ -std=c++17 -O2 -Wall -o biblioteca main_biblioteca.cpp
+// Ejecutar:
+//   ./biblioteca
+// ---------------------------------------------------------------------------
+#include "biblioteca.hpp"
 #include <iostream>
-#include <limits>
+#include <random>
+#include <set>
+#include <sstream>
+#include <iomanip>
+#include <algorithm>
 
-void mostrarVotante(NodoRBT* n) {
-    if (!n) {
-        std::cout << "No se encontro un votante con ese DNI.\n";
-        return;
+static std::vector<std::string> generarCodigos(int cantidad, unsigned semilla = 42) {
+    std::mt19937 rng(semilla);
+    std::uniform_int_distribution<int> d3(0, 999);
+    std::uniform_int_distribution<int> letra(0, 25);
+    std::uniform_int_distribution<int> d2(1, 99);
+
+    std::set<std::string> unicos;
+    while ((int)unicos.size() < cantidad) {
+        std::ostringstream oss;
+        oss << std::setw(3) << std::setfill('0') << d3(rng) << "."
+            << std::setw(3) << std::setfill('0') << d3(rng) << " "
+            << char('A' + letra(rng)) << d2(rng);
+        unicos.insert(oss.str());
     }
-    std::cout << "DNI: " << n->votante.dni
-              << " | Nombre: " << n->votante.nombre
-              << " | Facultad: " << n->votante.facultad
-              << " | Habilitado: " << (n->votante.habilitado ? "Si" : "No") << "\n";
-}
-
-void limpiarEntrada() {
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    return std::vector<std::string>(unicos.begin(), unicos.end());
 }
 
 int main() {
-    ArbolElectoral arbol;
-    int opcion = -1;
+    std::cout << "=== PRUEBA ARBOL B (C++17) - BIBLIOTECA CENTRAL UNA-PUNO ===\n\n";
 
-    while (opcion != 0) {
-        std::cout << "\n==== Sistema de Registro Electoral (RBT) ====\n";
-        std::cout << "1. Registrar votante\n";
-        std::cout << "2. Buscar votante por DNI\n";
-        std::cout << "3. Eliminar votante por DNI\n";
-        std::cout << "4. Verificar validez del arbol (propiedades RBT)\n";
-        std::cout << "5. Mostrar altura del arbol\n";
-        std::cout << "0. Salir\n";
-        std::cout << "Opcion: ";
+    const int N_LIBROS = 80000;
+    const int T = 50; // simula bloque de disco real
 
-        if (!(std::cin >> opcion)) {
-            limpiarEntrada();
-            continue;
-        }
+    ArbolBBiblioteca biblioteca(T);
+    std::vector<std::string> codigos = generarCodigos(N_LIBROS);
 
-        if (opcion == 1) {
-            Votante v;
-            std::cout << "DNI: ";
-            std::cin >> v.dni;
-            std::cout << "Nombre: ";
-            limpiarEntrada();
-            std::getline(std::cin, v.nombre);
-            std::cout << "Facultad: ";
-            std::getline(std::cin, v.facultad);
-            std::cout << "Habilitado (1 = si, 0 = no): ";
-            int h;
-            std::cin >> h;
-            v.habilitado = (h != 0);
-            arbol.insertar(v);
-            std::cout << "Votante registrado.\n";
-        } else if (opcion == 2) {
-            std::string dni;
-            std::cout << "DNI a buscar: ";
-            std::cin >> dni;
-            mostrarVotante(arbol.buscar(dni));
-        } else if (opcion == 3) {
-            std::string dni;
-            std::cout << "DNI a eliminar: ";
-            std::cin >> dni;
-            if (arbol.eliminar(dni)) std::cout << "Votante eliminado.\n";
-            else std::cout << "No se encontro un votante con ese DNI.\n";
-        } else if (opcion == 4) {
-            std::cout << (arbol.esRBTValido()
-                              ? "El arbol cumple las propiedades de un RBT.\n"
-                              : "El arbol NO cumple las propiedades de un RBT.\n");
-        } else if (opcion == 5) {
-            std::cout << "Altura del arbol: " << arbol.altura() << "\n";
-        } else if (opcion != 0) {
-            std::cout << "Opcion invalida.\n";
-        }
+    std::vector<std::string> barajados = codigos;
+    std::mt19937 rng(42);
+    std::shuffle(barajados.begin(), barajados.end(), rng);
+
+    std::cout << "Indexando " << N_LIBROS << " volumenes (t=" << T << ")...\n";
+    for (size_t i = 0; i < barajados.size(); i++) {
+        Libro lib{barajados[i], "Obra " + std::to_string(i),
+                   "Autor " + std::to_string(i % 500), true};
+        biblioteca.insertar(barajados[i], lib);
+    }
+    std::cout << "Catalogo indexado. Altura del arbol: " << biblioteca.altura() << "\n";
+
+    // 500 prestamos (eliminacion temporal)
+    std::vector<std::string> prestamos = codigos;
+    std::shuffle(prestamos.begin(), prestamos.end(), rng);
+    prestamos.resize(500);
+    for (auto& c : prestamos) biblioteca.eliminar(c);
+    std::cout << prestamos.size() << " prestamos procesados (libros retirados del indice).\n";
+
+    // 300 devoluciones
+    std::vector<std::string> devoluciones(prestamos.begin(), prestamos.begin() + 300);
+    for (auto& c : devoluciones) {
+        Libro lib{c, "(reinsertado)", "(reinsertado)", true};
+        biblioteca.insertar(c, lib);
+    }
+    std::cout << devoluciones.size() << " devoluciones procesadas (libros reinsertados).\n";
+
+    // Verificacion: los 200 no devueltos no deben encontrarse; el resto si.
+    std::set<std::string> noDevueltos(prestamos.begin() + 300, prestamos.end());
+    int esperados = 0, encontrados = 0;
+    for (auto& c : codigos) {
+        if (noDevueltos.count(c)) continue;
+        esperados++;
+        if (biblioteca.buscar(c)) encontrados++;
+    }
+    std::cout << "Libros indexados verificables tras la simulacion: "
+              << encontrados << "/" << esperados << "\n";
+
+    // Prueba de estres: 10,000 eliminaciones + 10,000 inserciones aleatorias
+    std::cout << "\n=== PRUEBA DE ESTRES ===\n";
+    std::vector<std::string> presentes;
+    for (auto& c : codigos) if (!noDevueltos.count(c)) presentes.push_back(c);
+
+    std::shuffle(presentes.begin(), presentes.end(), rng);
+    int nOps = std::min<int>(10000, (int)presentes.size());
+    std::vector<std::string> aEliminar(presentes.begin(), presentes.begin() + nOps);
+
+    std::set<std::string> conjuntoEsperado(presentes.begin(), presentes.end());
+
+    for (auto& c : aEliminar) biblioteca.eliminar(c);
+    for (size_t i = 0; i < aEliminar.size(); i++) {
+        Libro lib{aEliminar[i], "Reinsertado " + std::to_string(i), "Estres", true};
+        biblioteca.insertar(aEliminar[i], lib);
     }
 
-    std::cout << "Fin del programa.\n";
+    auto orden = biblioteca.inOrder();
+    bool ordenadoCorrectamente = std::is_sorted(orden.begin(), orden.end());
+    std::set<std::string> conjuntoFinal(orden.begin(), orden.end());
+    bool sinPerdida = (conjuntoFinal == conjuntoEsperado);
+
+    std::cout << "Operaciones realizadas: " << aEliminar.size() << " eliminaciones + "
+              << aEliminar.size() << " inserciones\n";
+    std::cout << "Orden preservado (in-order): " << (ordenadoCorrectamente ? "true" : "false") << "\n";
+    std::cout << "Catalogo sin perdida de registros: " << (sinPerdida ? "true" : "false") << "\n";
+    std::cout << "Altura final del arbol: " << biblioteca.altura() << "\n";
+
     return 0;
 }
