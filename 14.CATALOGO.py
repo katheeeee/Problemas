@@ -1,36 +1,9 @@
-"""
-Practica N 14 - Arboles B+
-Consultas de Rango sobre el Catalogo de la Biblioteca Central UNA-PUNO
-(Python 3.11+)
 
-Implementa:
-  - NodoHojaBP / NodoInternoBP
-  - Insercion con split y mantenimiento de la lista enlazada de hojas
-  - Busqueda puntual: buscar()
-  - Consulta de rango O(log n + k): rango()
-  - Recorrido completo del catalogo en O(n): recorrer_todo_el_catalogo()
-  - ELIMINACION B+ con redistribucion/fusion de hojas y de nodos internos,
-    reparando en todo momento la lista enlazada de hojas
-  - Simulacion sobre 80,000 volumenes con consultas de rango reales
-  - Prueba de estres: 5,000 eliminaciones aleatorias + verificacion de
-    integridad de la lista enlazada (sin ciclos, sin huecos, orden correcto)
-
-Nota de diseno: a diferencia del pseudocodigo de la guia (que solo resuelve
-el sub-poblamiento de HOJAS), esta version implementa la reparacion
-recursiva tambien para NODOS INTERNOS subpoblados, evitando que el arbol
-se corrompa tras muchas eliminaciones seguidas.
-
-Autor: Aico Ramos, Kriss Katherine
-"""
 
 from dataclasses import dataclass
 import random
 import time
 
-
-# ---------------------------------------------------------------------------
-# Modelo de datos
-# ---------------------------------------------------------------------------
 @dataclass
 class Libro:
     titulo: str
@@ -76,9 +49,6 @@ class ArbolBMas:
             nodo = nodo.hijos[0]
         return nodo
 
-    # ------------------------------------------------------------------ #
-    # Insercion con split
-    # ------------------------------------------------------------------ #
     def insertar(self, codigo: str, libro: Libro):
         resultado = self._ins(self.raiz, codigo, libro)
         if resultado:  # la raiz se dividio: crear nueva raiz interna
@@ -141,9 +111,6 @@ class ArbolBMas:
 
         return (clave_media, nuevo)
 
-    # ------------------------------------------------------------------ #
-    # Busqueda puntual y consulta de rango O(log n + k)
-    # ------------------------------------------------------------------ #
     def _bajar_a_hoja(self, codigo: str) -> NodoHojaBP:
         """Desciende desde la raiz hasta la hoja donde deberia estar codigo."""
         nodo = self.raiz
