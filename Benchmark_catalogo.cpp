@@ -1,23 +1,4 @@
-// benchmark_rango.cpp -- Actividad 7: B+ vs B-Tree vs AVL/RBT
-// Practica N.14 - Algoritmos y Estructuras de Datos - SIS210
-//
-// MEJORA sobre la guia original: el benchmark original llamaba a
-// `rango(/*primeraHoja*/nullptr, ...)`, lo cual es un bug (con
-// puntero nulo la funcion retorna una lista vacia sin medir nada
-// real), y dejaba sin implementar la logica de "rango simulado" para
-// B-Tree/AVL ("... logica de rango sin lista enlazada ..."). Aqui se
-// mide con estructuras REALES:
-//   - B+          -> nuestra clase ArbolBMas (catalogo_bp.hpp)
-//   - "B-Tree"    -> std::map (arbol rojo-negro balanceado por nodo,
-//                    representando un indice sin lista enlazada: cada
-//                    resultado adicional requiere avanzar el iterador
-//                    nodo a nodo, igual que redescender en un B-Tree)
-//   - "AVL / RBT" -> std::set (arbol binario de busqueda balanceado)
-//
-// Para cada estructura se mide el tiempo de una consulta de rango
-// identica sobre catalogos de tamano creciente.
-//
-// Compilar: g++ -std=c++17 -O2 -Wall -o benchmark_rango benchmark_rango.cpp
+
 
 #include "catalogo.hpp"
 #include <iostream>
