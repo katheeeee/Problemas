@@ -1,29 +1,4 @@
 
-// catalogo_bp.hpp -- Arbol B+ en C++17
-// Practica N.14 - Algoritmos y Estructuras de Datos - SIS210
-//
-// Version MEJORADA respecto de la guia original. Cambios principales:
-//
-//   1. La guia original definia DOS structs de nodo con vectores
-//      separados de hijos (hijosHoja / hijosInterno) dentro del mismo
-//      NodoInternoBP, lo cual es fragil y desperdicia memoria (un
-//      nodo interno nunca usa ambos vectores a la vez). Aqui se
-//      unifica todo en un unico `Nodo` con un flag `esHoja`, tal como
-//      se modelo en la version Python.
-//   2. Se implementa la ELIMINACION completa (fusion/redistribucion +
-//      reparacion de punteros `siguiente`), que la guia original NO
-//      incluia en el codigo C++ (solo la pedia como ejercicio).
-//   3. El benchmark de la guia original llamaba a
-//      `rango(/*primeraHoja*/ nullptr, ...)`, lo cual es un bug: con
-//      puntero nulo la funcion retorna inmediatamente una lista vacia.
-//      Aqui se corrige guardando siempre un puntero valido a la
-//      primera hoja dentro de la propia clase del arbol.
-//   4. Se anade `verificarIntegridad()` para validar la lista enlazada
-//      tras insertar/eliminar masivamente (prueba de estres, Seccion
-//      VII de la guia).
-//
-// Compilar: g++ -std=c++17 -O2 -Wall -o catalogo catalogo.cpp
-
 #pragma once
 
 #include <string>
@@ -280,13 +255,13 @@ private:
         if (hermDer) {
             hoja->claves.insert(hoja->claves.end(), hermDer->claves.begin(), hermDer->claves.end());
             hoja->libros.insert(hoja->libros.end(), hermDer->libros.begin(), hermDer->libros.end());
-            hoja->siguiente = hermDer->siguiente;  // ¡reparar la lista!
+            hoja->siguiente = hermDer->siguiente;  // Â¡reparar la lista!
             padre->claves.erase(padre->claves.begin() + idx);
             padre->hijos.erase(padre->hijos.begin() + idx + 1);
         } else if (hermIzq) {
             hermIzq->claves.insert(hermIzq->claves.end(), hoja->claves.begin(), hoja->claves.end());
             hermIzq->libros.insert(hermIzq->libros.end(), hoja->libros.begin(), hoja->libros.end());
-            hermIzq->siguiente = hoja->siguiente;  // ¡reparar la lista!
+            hermIzq->siguiente = hoja->siguiente;  // Â¡reparar la lista!
             padre->claves.erase(padre->claves.begin() + idx - 1);
             padre->hijos.erase(padre->hijos.begin() + idx);
         }
