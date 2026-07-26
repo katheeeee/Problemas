@@ -12,14 +12,6 @@ struct LibroBP {
     std::string autor;
 };
 
-// ---------------------------------------------------------------------
-// Nodo unificado: hoja o interno segun `esHoja`.
-//   - Si esHoja == true : `libros` tiene datos, `siguiente` enlaza a la
-//     siguiente hoja, `hijos` esta vacio.
-//   - Si esHoja == false: `claves` son GUIA (sin datos asociados),
-//     `hijos` contiene los punteros a los subarboles, `libros` y
-//     `siguiente` no se usan.
-// ---------------------------------------------------------------------
 struct Nodo {
     bool esHoja;
     std::vector<std::string> claves;
